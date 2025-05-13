@@ -55,28 +55,72 @@ public class KeycloakUserSyncFilter implements WebFilter {
         return chain.filter(exchange);
     }
 
+//    private RegisterRequest getUserDetails(String token) {
+//        try{
+//            String tokenWithoutBearer = token.replace("Bearer", "").trim();
+//            SignedJWT signedJWT = SignedJWT.parse(tokenWithoutBearer);
+//            JWTClaimsSet claims = signedJWT.getJWTClaimsSet();
+//
+//            // Log claims for debugging
+//            log.info("JWT Claims: {}", claims.toJSONObject());
+//
+//            RegisterRequest registerRequest = new RegisterRequest();
+//            registerRequest.setEmail(claims.getStringClaim("email"));
+//            registerRequest.setKeycloakId(claims.getStringClaim("sub"));
+//            registerRequest.setPassword("dummy@123123");
+//            registerRequest.setFirstName(claims.getStringClaim("given_name"));
+//            registerRequest.setLastName(claims.getStringClaim("family_name"));
+//
+//            return registerRequest;
+//
+//        }catch (Exception e){
+//            e.printStackTrace();
+//            return null;
+//        }
+//    }
+
     private RegisterRequest getUserDetails(String token) {
-        try{
+        try {
+            // Remove the "Bearer " prefix if present
             String tokenWithoutBearer = token.replace("Bearer", "").trim();
+
+            // Parse the JWT
             SignedJWT signedJWT = SignedJWT.parse(tokenWithoutBearer);
             JWTClaimsSet claims = signedJWT.getJWTClaimsSet();
 
-            // Log claims for debugging
+            // Log the entire JWT claims for debugging purposes
             log.info("JWT Claims: {}", claims.toJSONObject());
 
+            // Retrieve claims from the JWT
+            String email = claims.getStringClaim("email");
+            String keycloakId = claims.getStringClaim("sub");  // Keycloak user ID (sub)
+            String firstName = claims.getStringClaim("given_name");
+            String lastName = claims.getStringClaim("family_name");
+
+            // Ensure that keycloakId and email are available, if not log an error
+            if (keycloakId == null) {
+                log.error("Keycloak ID (sub) not found in the token.");
+            }
+            if (email == null) {
+                log.error("Email not found in the token.");
+            }
+
+            // Construct the RegisterRequest
             RegisterRequest registerRequest = new RegisterRequest();
-            registerRequest.setEmail(claims.getStringClaim("email"));
-            registerRequest.setKeycloakId(claims.getStringClaim("sub"));
-            registerRequest.setPassword("dummy@123123");
-            registerRequest.setFirstName(claims.getStringClaim("given_name"));
-            registerRequest.setLastName(claims.getStringClaim("family_name"));
+            registerRequest.setEmail(email);
+            registerRequest.setKeycloakId(keycloakId);  // Set the keycloakId (sub)
+            registerRequest.setPassword("dummy@123123");  // Temporary password (set as per your logic)
+            registerRequest.setFirstName(firstName);
+            registerRequest.setLastName(lastName);
 
             return registerRequest;
 
-        }catch (Exception e){
-            e.printStackTrace();
-            return null;
+        } catch (Exception e) {
+            // Log the exception for debugging
+            log.error("Error while parsing the JWT token: ", e);
+            return null;  // Return null if there's an error in parsing the JWT
         }
     }
+
 
 }
