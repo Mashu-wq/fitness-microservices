@@ -1,11 +1,28 @@
 spring:
   application:
     name: api-gateway
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          jwk-set-uri: http://localhost:8181/realms/fitness-oauth2/protocol/openid-connect/certs
+  spring:
+    security:
+      oauth2:
+        client:
+          registration:
+            keycloak:
+              client-id: fitness-app-gateway
+              scope: openid,profile,email
+              redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+              authorization-grant-type: authorization_code
+              client-name: Keycloak
+              provider: keycloak
+
+          provider:
+            keycloak:
+              issuer-uri: http://localhost:7080/realms/master
+              authorization-uri: http://localhost:7080/realms/master/protocol/openid-connect/auth
+              token-uri: http://localhost:7080/realms/master/protocol/openid-connect/token
+              user-info-uri: http://localhost:7080/realms/master/protocol/openid-connect/userinfo
+              jwk-set-uri: http://localhost:7080/realms/master/protocol/openid-connect/certs
+              user-name-attribute: preferred_username
+
   cloud:
     gateway:
       routes:

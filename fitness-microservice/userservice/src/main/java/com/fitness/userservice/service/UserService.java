@@ -47,6 +47,12 @@ public class UserService {
         userResponse.setCreatedAt(savedUser.getCreatedAt());
         userResponse.setUpdatedAt(savedUser.getUpdatedAt());
 
+        log.info("Registering user with email: {}", request.getEmail());
+        log.info("Keycloak ID: {}", request.getKeycloakId());
+        log.info("First Name: {}", request.getFirstName());
+        log.info("Last Name: {}", request.getLastName());
+
+
         return userResponse;
 
 

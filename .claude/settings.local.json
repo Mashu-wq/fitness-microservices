@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la /e/MyProject/Spring-AI-Microservices-Fitness/fitness-microservice/*/Dockerfile)"
+    ]
+  }
+}
