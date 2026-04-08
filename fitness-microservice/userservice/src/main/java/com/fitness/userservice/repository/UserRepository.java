@@ -12,7 +12,7 @@ public interface UserRepository extends MongoRepository<User, String> {
     boolean existsByEmail(@NotBlank(message = "Email is required") @Email(message = "Invalid email format") String email);
 
 
-    User findByEmail(@NotBlank(message = "Email is required") @Email(message = "Invalid email format") String email);
+    java.util.Optional<User> findByEmail(@NotBlank(message = "Email is required") @Email(message = "Invalid email format") String email);
 
     Boolean existsByKeycloakId(String userId);
 }

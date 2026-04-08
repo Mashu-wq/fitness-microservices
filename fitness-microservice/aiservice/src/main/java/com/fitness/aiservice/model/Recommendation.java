@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
@@ -24,9 +25,11 @@ public class Recommendation {
     private String id;
 
     @Schema(description = "Activity ID", example = "act456")
+    @Indexed(unique = true)
     private String activityId;
 
     @Schema(description = "User ID", example = "user789")
+    @Indexed
     private String userId;
 
     @Schema(description = "Type of activity", example = "RUNNING")

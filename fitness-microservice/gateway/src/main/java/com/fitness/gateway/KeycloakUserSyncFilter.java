@@ -13,114 +13,121 @@ import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
+/**
+ * Extracts the authenticated user's Keycloak ID (sub claim) directly from the JWT
+ * and injects it as an X-User-ID header for downstream services.
+ *
+ * SECURITY: userId is always derived from the verified JWT — never trusted from
+ * client-supplied headers, which would allow spoofing.
+ */
 @Component
 @Slf4j
 @RequiredArgsConstructor
 public class KeycloakUserSyncFilter implements WebFilter {
+
     private final UserService userService;
 
     @Override
-    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain){
-        String userId = exchange.getRequest().getHeaders().getFirst("X-User-ID");
+    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         String token = exchange.getRequest().getHeaders().getFirst("Authorization");
 
-        if(userId != null && token != null) {
-            return userService.validateUser(userId)
-                    .flatMap(exist -> {
-                        if(!exist){
-                            //Register user
-                            RegisterRequest registerRequest = getUserDetails(token);
-                            if(registerRequest != null){
-                                return userService.registerUser(registerRequest)
-                                        .then(Mono.empty());
-                            }else {
-                                return Mono.empty();
+        if (token != null && token.startsWith("Bearer ")) {
+            // FIX: Extract userId from JWT — never trust client-supplied X-User-ID header
+            String userId = extractUserIdFromToken(token);
+
+            if (userId != null) {
+                return userService.validateUser(userId)
+                        .flatMap(exists -> {
+                            if (!exists) {
+                                RegisterRequest registerRequest = buildRegisterRequest(token, userId);
+                                if (registerRequest != null) {
+                                    return userService.registerUser(registerRequest)
+                                            .doOnSuccess(u -> log.info("Auto-registered new user: {}", userId))
+                                            .onErrorResume(e -> {
+                                                log.error("Failed to auto-register user {}: {}", userId, e.getMessage());
+                                                return Mono.empty(); // allow request to proceed anyway
+                                            })
+                                            .then();
+                                }
+                            } else {
+                                log.debug("User {} already exists, skipping sync.", userId);
                             }
-
-                        }
-                        else{
-                            log.info("User already exist, Skipping sync.");
                             return Mono.empty();
-                        }
-                    })
-                    .then(Mono.defer(() -> {
-                ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
-                        .header("X-User-ID", userId)
-                        .build();
-                return chain.filter(exchange.mutate().request(mutatedRequest).build());
-            }));
-
+                        })
+                        .onErrorResume(e -> {
+                            log.warn("User validation failed for {}: {}. Proceeding without sync.", userId, e.getMessage());
+                            return Mono.empty();
+                        })
+                        .then(Mono.defer(() -> {
+                            // Strip any client-supplied X-User-ID to prevent spoofing,
+                            // then inject the value derived from the verified JWT sub claim.
+                            ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
+                                    .headers(headers -> {
+                                        headers.remove("X-User-ID");
+                                        headers.add("X-User-ID", userId);
+                                    })
+                                    .build();
+                            return chain.filter(exchange.mutate().request(mutatedRequest).build());
+                        }));
+            }
         }
 
         return chain.filter(exchange);
     }
 
-//    private RegisterRequest getUserDetails(String token) {
-//        try{
-//            String tokenWithoutBearer = token.replace("Bearer", "").trim();
-//            SignedJWT signedJWT = SignedJWT.parse(tokenWithoutBearer);
-//            JWTClaimsSet claims = signedJWT.getJWTClaimsSet();
-//
-//            // Log claims for debugging
-//            log.info("JWT Claims: {}", claims.toJSONObject());
-//
-//            RegisterRequest registerRequest = new RegisterRequest();
-//            registerRequest.setEmail(claims.getStringClaim("email"));
-//            registerRequest.setKeycloakId(claims.getStringClaim("sub"));
-//            registerRequest.setPassword("dummy@123123");
-//            registerRequest.setFirstName(claims.getStringClaim("given_name"));
-//            registerRequest.setLastName(claims.getStringClaim("family_name"));
-//
-//            return registerRequest;
-//
-//        }catch (Exception e){
-//            e.printStackTrace();
-//            return null;
-//        }
-//    }
-
-    private RegisterRequest getUserDetails(String token) {
+    /**
+     * Extracts the 'sub' (Keycloak user ID) claim from the JWT Bearer token.
+     * Returns null if the token cannot be parsed.
+     */
+    private String extractUserIdFromToken(String token) {
         try {
-            // Remove the "Bearer " prefix if present
-            String tokenWithoutBearer = token.replace("Bearer", "").trim();
-
-            // Parse the JWT
-            SignedJWT signedJWT = SignedJWT.parse(tokenWithoutBearer);
-            JWTClaimsSet claims = signedJWT.getJWTClaimsSet();
-
-            // Log the entire JWT claims for debugging purposes
-            log.info("JWT Claims: {}", claims.toJSONObject());
-
-            // Retrieve claims from the JWT
-            String email = claims.getStringClaim("email");
-            String keycloakId = claims.getStringClaim("sub");  // Keycloak user ID (sub)
-            String firstName = claims.getStringClaim("given_name");
-            String lastName = claims.getStringClaim("family_name");
-
-            // Ensure that keycloakId and email are available, if not log an error
-            if (keycloakId == null) {
-                log.error("Keycloak ID (sub) not found in the token.");
+            String rawToken = token.replace("Bearer", "").trim();
+            SignedJWT signedJWT = SignedJWT.parse(rawToken);
+            String sub = signedJWT.getJWTClaimsSet().getStringClaim("sub");
+            if (sub == null) {
+                log.error("JWT is missing 'sub' claim.");
             }
-            if (email == null) {
-                log.error("Email not found in the token.");
-            }
-
-            // Construct the RegisterRequest
-            RegisterRequest registerRequest = new RegisterRequest();
-            registerRequest.setEmail(email);
-            registerRequest.setKeycloakId(keycloakId);  // Set the keycloakId (sub)
-            registerRequest.setPassword("dummy@123123");  // Temporary password (set as per your logic)
-            registerRequest.setFirstName(firstName);
-            registerRequest.setLastName(lastName);
-
-            return registerRequest;
-
+            return sub;
         } catch (Exception e) {
-            // Log the exception for debugging
-            log.error("Error while parsing the JWT token: ", e);
-            return null;  // Return null if there's an error in parsing the JWT
+            log.error("Failed to extract sub from JWT: {}", e.getMessage());
+            return null;
         }
     }
 
+    /**
+     * Builds a RegisterRequest from JWT claims for first-time user auto-registration.
+     */
+    private RegisterRequest buildRegisterRequest(String token, String keycloakId) {
+        try {
+            String rawToken = token.replace("Bearer", "").trim();
+            SignedJWT signedJWT = SignedJWT.parse(rawToken);
+            JWTClaimsSet claims = signedJWT.getJWTClaimsSet();
 
+            log.info("JWT claims for new user registration: {}", claims.toJSONObject());
+
+            String email = claims.getStringClaim("email");
+            String firstName = claims.getStringClaim("given_name");
+            String lastName = claims.getStringClaim("family_name");
+
+            if (email == null) {
+                log.error("Cannot register user — 'email' claim missing from JWT.");
+                return null;
+            }
+
+            RegisterRequest request = new RegisterRequest();
+            request.setKeycloakId(keycloakId);
+            request.setEmail(email);
+            // Auth is via Keycloak; this field is stored hashed and never used for login.
+            // Use a random UUID so no two accounts share a known password hash.
+            request.setPassword(java.util.UUID.randomUUID().toString());
+            request.setFirstName(firstName);
+            request.setLastName(lastName);
+
+            return request;
+
+        } catch (Exception e) {
+            log.error("Failed to build RegisterRequest from JWT: {}", e.getMessage());
+            return null;
+        }
+    }
 }

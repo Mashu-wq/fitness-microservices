@@ -1,28 +1,28 @@
+server:
+  port: 8080
+
 spring:
   application:
     name: api-gateway
-  spring:
-    security:
-      oauth2:
-        client:
-          registration:
-            keycloak:
-              client-id: fitness-app-gateway
-              scope: openid,profile,email
-              redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
-              authorization-grant-type: authorization_code
-              client-name: Keycloak
-              provider: keycloak
-
-          provider:
-            keycloak:
-              issuer-uri: http://localhost:7080/realms/master
-              authorization-uri: http://localhost:7080/realms/master/protocol/openid-connect/auth
-              token-uri: http://localhost:7080/realms/master/protocol/openid-connect/token
-              user-info-uri: http://localhost:7080/realms/master/protocol/openid-connect/userinfo
-              jwk-set-uri: http://localhost:7080/realms/master/protocol/openid-connect/certs
-              user-name-attribute: preferred_username
-
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: fitness-app-gateway
+            scope: openid,profile,email
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            authorization-grant-type: authorization_code
+            client-name: Keycloak
+            provider: keycloak
+        provider:
+          keycloak:
+            issuer-uri: http://host.docker.internal:7080/realms/master
+            authorization-uri: http://host.docker.internal:7080/realms/master/protocol/openid-connect/auth
+            token-uri: http://host.docker.internal:7080/realms/master/protocol/openid-connect/token
+            user-info-uri: http://host.docker.internal:7080/realms/master/protocol/openid-connect/userinfo
+            jwk-set-uri: http://host.docker.internal:7080/realms/master/protocol/openid-connect/certs
+            user-name-attribute: preferred_username
   cloud:
     gateway:
       routes:
@@ -39,10 +39,7 @@ spring:
           predicates:
             - Path=/api/recommendations/**
 
-server:
-  port: 9090
-
 eureka:
   client:
     serviceUrl:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: http://eureka:8761/eureka
