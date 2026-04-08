@@ -1,0 +1,19 @@
+{
+  "name": "fitness-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for the Spring AI Fitness Microservices project. Provides tools to query MongoDB, inspect RabbitMQ queues, check service health, and decode JWTs — all usable by Claude Code without leaving the IDE.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.10.2",
+    "mongodb": "^6.12.0",
+    "zod": "^3.23.8"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
