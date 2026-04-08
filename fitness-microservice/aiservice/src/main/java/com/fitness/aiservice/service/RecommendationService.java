@@ -1,23 +1,24 @@
 package com.fitness.aiservice.service;
 
+import com.fitness.aiservice.exception.RecommendationNotFoundException;
 import com.fitness.aiservice.model.Recommendation;
 import com.fitness.aiservice.repsitory.RecommendationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class RecommendationService {
     private final RecommendationRepository recommendationRepository;
 
-    public List<Recommendation> getUserRecommendation(String userId) {
-        return recommendationRepository.findByUserId(userId);
+    public Page<Recommendation> getUserRecommendation(String userId, Pageable pageable) {
+        return recommendationRepository.findByUserId(userId, pageable);
     }
 
     public Recommendation getActivityRecommendation(String activityId) {
         return recommendationRepository.findByActivityId(activityId)
-                .orElseThrow(() -> new RuntimeException("Recommendation not found for activityId: " + activityId));
+                .orElseThrow(() -> new RecommendationNotFoundException(activityId));
     }
 }

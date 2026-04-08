@@ -11,7 +11,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -27,28 +26,47 @@ public class ActivityService {
 
     @Value("${rabbitmq.routing.key}")
     private String routingKey;
-    public ActivityResponse tracActivity(ActivityRequest request) {
 
-        boolean isValidUser = userValidationService.validateUser(request.getUserId());
-        if(!isValidUser) throw new RuntimeException("Invalid User " + request.getUserId());
+    // FIX: userId is now an explicit parameter injected from the gateway header
+    public ActivityResponse trackActivity(ActivityRequest request, String userId) {
+
+        boolean isValidUser = userValidationService.validateUser(userId);
+        if (!isValidUser) {
+            throw new RuntimeException("Invalid or non-existent user: " + userId);
+        }
+
         Activity activity = Activity.builder()
-                .userId(request.getUserId())
+                .userId(userId)
                 .type(request.getType())
                 .duration(request.getDuration())
                 .caloriesBurned(request.getCaloriesBurned())
                 .startTime(request.getStartTime())
-                .additionalMetrices(request.getAdditionalMetrics())
+                .additionalMetrics(request.getAdditionalMetrics()) // FIX: additionalMetrices → additionalMetrics
                 .build();
+
         Activity savedActivity = activityRepository.save(activity);
 
-        //publish to RabbitMQ for AI processing
-        try{
+        // Publish to RabbitMQ for async AI processing (fire-and-forget)
+        try {
             rabbitTemplate.convertAndSend(exchange, routingKey, savedActivity);
-
-        }catch (Exception e){
-            log.error("Failed to publish activity to RabbitMQ", e);
+        } catch (Exception e) {
+            log.error("Failed to publish activity {} to RabbitMQ: {}", savedActivity.getId(), e.getMessage());
         }
+
         return mapToActivityResponse(savedActivity);
+    }
+
+    public List<ActivityResponse> getUserActivities(String userId) {
+        return activityRepository.findByUserId(userId)
+                .stream()
+                .map(this::mapToActivityResponse)
+                .toList();
+    }
+
+    public ActivityResponse getActivityById(String activityId) {
+        return activityRepository.findById(activityId)
+                .map(this::mapToActivityResponse)
+                .orElseThrow(() -> new RuntimeException("Activity not found with id: " + activityId));
     }
 
     private ActivityResponse mapToActivityResponse(Activity activity) {
@@ -59,18 +77,9 @@ public class ActivityService {
         response.setDuration(activity.getDuration());
         response.setCaloriesBurned(activity.getCaloriesBurned());
         response.setStartTime(activity.getStartTime());
-        response.setAdditionalMetrices(activity.getAdditionalMetrices());
+        response.setAdditionalMetrics(activity.getAdditionalMetrics()); // FIX: typo
         response.setCreatedAt(activity.getCreatedAt());
-        response.setUpdateadAt(activity.getUpdateadAt());
+        response.setUpdatedAt(activity.getUpdatedAt());               // FIX: typo
         return response;
-    }
-
-    public List<ActivityResponse> getUserActivities(String userId) {
-        List<Activity> activities = activityRepository.findByUserId(userId);
-        return activities.stream().map(this::mapToActivityResponse).collect(Collectors.toList());
-    }
-
-    public ActivityResponse getActivityById(String activityId) {
-       return activityRepository.findById(activityId).map(this::mapToActivityResponse).orElseThrow(() -> new RuntimeException("Activity not found with id: " + activityId));
     }
 }

@@ -7,8 +7,8 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -18,23 +18,23 @@ import java.util.Map;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-
 public class Activity {
     @Id
-
     private String id;
+    @Indexed
     private String userId;
     private ActivityType type;
     private Integer duration;
     private Integer caloriesBurned;
     private LocalDateTime startTime;
 
-    @Field("metrices")
-    private Map<String, Object> additionalMetrices;
+    // FIX: Renamed from additionalMetrices (typo) — MongoDB field name now matches Java field
+    private Map<String, Object> additionalMetrics;
 
     @CreatedDate
     private LocalDateTime createdAt;
 
+    // FIX: Renamed from updateadAt (typo)
     @LastModifiedDate
-    private LocalDateTime updateadAt;
+    private LocalDateTime updatedAt;
 }

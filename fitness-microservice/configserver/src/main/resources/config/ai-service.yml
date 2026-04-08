@@ -1,23 +1,24 @@
 server:
-  port: 8084
-
+  port: 8083
 
 spring:
+  application:
+    name: ai-service
   data:
     mongodb:
-      uri: mongodb://localhost:27017/fitnessrecommendation
+      uri: mongodb://host.docker.internal:27017/fitnessrecommendation
       database: fitnessrecommendation
-
+      auto-index-creation: true
   rabbitmq:
-    host: localhost
+    host: rabbitmq
     port: 5672
-    username: guest
-    password: guest
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASS:guest}
 
 eureka:
   client:
     serviceUrl:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: http://eureka:8761/eureka
 
 rabbitmq:
   exchange:
@@ -31,3 +32,21 @@ gemini:
   api:
     url: ${GEMINI_API_URL}
     key: ${GEMINI_API_KEY}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://zipkin:9411/api/v2/spans
+  metrics:
+    tags:
+      application: ${spring.application.name}

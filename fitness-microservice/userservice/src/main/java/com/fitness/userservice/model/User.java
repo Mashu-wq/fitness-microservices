@@ -4,6 +4,7 @@ import lombok.Data;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import com.fitness.userservice.model.UserRole;
 
@@ -15,7 +16,9 @@ public class User {
 
     @Id
     private String id;
+    @Indexed(unique = true)
     private String email;
+    @Indexed(unique = true)
     private String keycloakId;
     private String password;
     private String firstName;

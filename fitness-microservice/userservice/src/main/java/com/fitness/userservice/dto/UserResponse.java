@@ -1,6 +1,5 @@
 package com.fitness.userservice.dto;
 
-import com.fitness.userservice.model.UserRole;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -11,7 +10,7 @@ public class UserResponse {
     private String id;
     private String keycloakId;
     private String email;
-    private String password;
+    // password intentionally omitted — never expose credentials in API responses
     private String firstName;
     private String lastName;
     private LocalDateTime createdAt;

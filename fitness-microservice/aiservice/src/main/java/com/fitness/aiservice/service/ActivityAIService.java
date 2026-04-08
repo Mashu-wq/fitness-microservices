@@ -18,6 +18,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ActivityAIService {
     private final GeminiService geminiService;
+    private final ObjectMapper objectMapper;
 
     public Recommendation generateRecommendation(Activity activity){
         String prompt = createPromptForActivity(activity);
@@ -28,15 +29,21 @@ public class ActivityAIService {
 
     private Recommendation processAiResponse(Activity activity, String aiResponse) {
         try{
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode rootNode = mapper.readTree(aiResponse);
+            JsonNode rootNode = objectMapper.readTree(aiResponse);
 
-            JsonNode textNode = rootNode.path("candidates")
-                    .get(0)
-                    .path("content")
-                    .path("parts")
-                    .get(0)
-                    .path("text");
+            JsonNode candidates = rootNode.path("candidates");
+            if (!candidates.isArray() || candidates.isEmpty()) {
+                log.warn("Gemini returned no candidates for activity {}. Full response: {}", activity.getId(), aiResponse);
+                return createDefaultRecommendation(activity);
+            }
+
+            JsonNode parts = candidates.get(0).path("content").path("parts");
+            if (!parts.isArray() || parts.isEmpty()) {
+                log.warn("Gemini candidates[0].content.parts is empty for activity {}", activity.getId());
+                return createDefaultRecommendation(activity);
+            }
+
+            JsonNode textNode = parts.get(0).path("text");
 
             String jsonContent = textNode.asText()
                     .replaceAll("```json\\n", "")
@@ -45,7 +52,7 @@ public class ActivityAIService {
 
             //log.info("PARSED RESPONSE FROM AI: {} ", jsonContent);
             
-            JsonNode analysisJson = mapper.readTree(jsonContent);
+            JsonNode analysisJson = objectMapper.readTree(jsonContent);
             JsonNode analysisNode = analysisJson.path("analysis");
 
 
@@ -72,7 +79,7 @@ public class ActivityAIService {
                     .build();
 
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to parse AI response for activity {}: {}", activity.getId(), e.getMessage(), e);
             return createDefaultRecommendation(activity);
         }
 
@@ -176,6 +183,6 @@ public class ActivityAIService {
                 activity.getType(),
                 activity.getDuration(),
                 activity.getCaloriesBurned(),
-                activity.getAdditionalMetrices());
+                activity.getAdditionalMetrics());
     }
 }

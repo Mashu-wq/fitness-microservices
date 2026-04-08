@@ -1,48 +1,99 @@
+server:
+  port: 8080
+
 spring:
   application:
     name: api-gateway
-  spring:
-    security:
-      oauth2:
-        client:
-          registration:
-            keycloak:
-              client-id: fitness-app-gateway
-              scope: openid,profile,email
-              redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
-              authorization-grant-type: authorization_code
-              client-name: Keycloak
-              provider: keycloak
 
-          provider:
-            keycloak:
-              issuer-uri: http://localhost:7080/realms/master
-              authorization-uri: http://localhost:7080/realms/master/protocol/openid-connect/auth
-              token-uri: http://localhost:7080/realms/master/protocol/openid-connect/token
-              user-info-uri: http://localhost:7080/realms/master/protocol/openid-connect/userinfo
-              jwk-set-uri: http://localhost:7080/realms/master/protocol/openid-connect/certs
-              user-name-attribute: preferred_username
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: fitness-app-gateway
+            scope: openid,profile,email
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            authorization-grant-type: authorization_code
+            client-name: Keycloak
+            provider: keycloak
+        provider:
+          keycloak:
+            issuer-uri: http://host.docker.internal:7080/realms/master
+            authorization-uri: http://host.docker.internal:7080/realms/master/protocol/openid-connect/auth
+            token-uri: http://host.docker.internal:7080/realms/master/protocol/openid-connect/token
+            user-info-uri: http://host.docker.internal:7080/realms/master/protocol/openid-connect/userinfo
+            jwk-set-uri: http://host.docker.internal:7080/realms/master/protocol/openid-connect/certs
+            user-name-attribute: preferred_username
+
+  # Redis: used by RequestRateLimiter filter
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
 
   cloud:
     gateway:
+      # Global default filters applied to every route
+      default-filters:
+        - name: RequestRateLimiter
+          args:
+            # replenishRate: tokens added per second per user (steady-state throughput)
+            # burstCapacity: max tokens available at any instant (burst allowance)
+            redis-rate-limiter.replenishRate: 10
+            redis-rate-limiter.burstCapacity: 20
+            redis-rate-limiter.requestedTokens: 1
+            key-resolver: "#{@userKeyResolver}"
+
       routes:
         - id: user-service
           uri: lb://USER-SERVICE
           predicates:
             - Path=/api/users/**
+
         - id: activity-service
           uri: lb://ACTIVITY-SERVICE
           predicates:
             - Path=/api/activities/**
+
         - id: ai-service
           uri: lb://AI-SERVICE
           predicates:
             - Path=/api/recommendations/**
 
-server:
-  port: 9090
+        - id: goal-service
+          uri: lb://GOAL-SERVICE
+          predicates:
+            - Path=/api/goals/**
+
+        - id: leaderboard-service
+          uri: lb://LEADERBOARD-SERVICE
+          predicates:
+            - Path=/api/leaderboard/**
+
+        - id: wearable-service
+          uri: lb://WEARABLE-SERVICE
+          predicates:
+            - Path=/api/wearables/**
 
 eureka:
   client:
     serviceUrl:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: http://eureka:8761/eureka
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://zipkin:9411/api/v2/spans
+  metrics:
+    tags:
+      application: ${spring.application.name}
