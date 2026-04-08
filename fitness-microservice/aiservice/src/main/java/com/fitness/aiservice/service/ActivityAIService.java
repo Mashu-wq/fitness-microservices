@@ -52,7 +52,7 @@ public class ActivityAIService {
 
             //log.info("PARSED RESPONSE FROM AI: {} ", jsonContent);
             
-            JsonNode analysisJson = mapper.readTree(jsonContent);
+            JsonNode analysisJson = objectMapper.readTree(jsonContent);
             JsonNode analysisNode = analysisJson.path("analysis");
 
 

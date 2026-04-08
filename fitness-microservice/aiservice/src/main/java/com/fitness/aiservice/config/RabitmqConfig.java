@@ -49,6 +49,47 @@ public class RabitmqConfig {
         return BindingBuilder.bind(activityQueue).to(activityExchange).with("activity.tracking");
     }
 
+    // ── Goal milestone events: goal.progress.exchange → goal.ai.queue ─────────
+
+    private static final String GOAL_PROGRESS_EXCHANGE  = "goal.progress.exchange";
+    private static final String GOAL_PROGRESS_ROUTING_KEY = "goal.progress";
+    private static final String GOAL_AI_QUEUE  = "goal.ai.queue";
+    private static final String GOAL_AI_DLX    = "goal.ai.dlx";
+    private static final String GOAL_AI_DLQ    = "goal.ai.dlq";
+
+    @Bean
+    public DirectExchange goalProgressExchange() {
+        return new DirectExchange(GOAL_PROGRESS_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public DirectExchange goalAiDlx() {
+        return new DirectExchange(GOAL_AI_DLX);
+    }
+
+    @Bean
+    public Queue goalAiDlq() {
+        return QueueBuilder.durable(GOAL_AI_DLQ).build();
+    }
+
+    @Bean
+    public Binding goalAiDlqBinding(Queue goalAiDlq, DirectExchange goalAiDlx) {
+        return BindingBuilder.bind(goalAiDlq).to(goalAiDlx).with(GOAL_AI_QUEUE);
+    }
+
+    @Bean
+    public Queue goalAiQueue() {
+        return QueueBuilder.durable(GOAL_AI_QUEUE)
+                .withArgument("x-dead-letter-exchange", GOAL_AI_DLX)
+                .withArgument("x-dead-letter-routing-key", GOAL_AI_QUEUE)
+                .build();
+    }
+
+    @Bean
+    public Binding goalAiBinding(Queue goalAiQueue, DirectExchange goalProgressExchange) {
+        return BindingBuilder.bind(goalAiQueue).to(goalProgressExchange).with(GOAL_PROGRESS_ROUTING_KEY);
+    }
+
     @Bean
     public MessageConverter jsonMessageConverter() {
         return new Jackson2JsonMessageConverter();

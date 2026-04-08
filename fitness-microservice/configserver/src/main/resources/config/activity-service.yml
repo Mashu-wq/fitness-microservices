@@ -9,11 +9,14 @@ spring:
       uri: mongodb://host.docker.internal:27017/fitnessactivity
       database: fitnessactivity
       auto-index-creation: true
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
   rabbitmq:
     host: rabbitmq
     port: 5672
-    username: guest
-    password: guest
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASS:guest}
 
 eureka:
   client:
@@ -27,3 +30,21 @@ rabbitmq:
     name: activity.queue
   routing:
     key: activity.tracking
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://zipkin:9411/api/v2/spans
+  metrics:
+    tags:
+      application: ${spring.application.name}

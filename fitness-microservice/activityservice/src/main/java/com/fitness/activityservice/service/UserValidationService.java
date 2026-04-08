@@ -3,10 +3,13 @@ package com.fitness.activityservice.service;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+
+import java.time.Duration;
 
 @Service
 @Slf4j
@@ -15,6 +18,7 @@ public class UserValidationService {
 
     private final WebClient userServiceWebClient;
 
+    @Cacheable(value = "userValidation", key = "#userId", unless = "#result == false")
     @CircuitBreaker(name = "userService", fallbackMethod = "validateUserFallback")
     public boolean validateUser(String userId) {
         log.info("Calling User Validation API for userId: {}", userId);
@@ -24,7 +28,7 @@ public class UserValidationService {
                             .uri("/api/users/{userId}/validate", userId)
                             .retrieve()
                             .bodyToMono(Boolean.class)
-                            .block()
+                            .block(Duration.ofSeconds(5))
             );
         } catch (WebClientResponseException e) {
             if (e.getStatusCode() == HttpStatus.NOT_FOUND) {

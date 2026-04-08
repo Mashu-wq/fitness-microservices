@@ -14,3 +14,21 @@ eureka:
   client:
     serviceUrl:
       defaultZone: http://eureka:8761/eureka
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+  tracing:
+    sampling:
+      probability: 1.0   # 100% in dev — lower to 0.1 in prod
+  zipkin:
+    tracing:
+      endpoint: http://zipkin:9411/api/v2/spans
+  metrics:
+    tags:
+      application: ${spring.application.name}

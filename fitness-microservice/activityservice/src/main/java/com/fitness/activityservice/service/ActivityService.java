@@ -11,7 +11,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -61,7 +60,7 @@ public class ActivityService {
         return activityRepository.findByUserId(userId)
                 .stream()
                 .map(this::mapToActivityResponse)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public ActivityResponse getActivityById(String activityId) {

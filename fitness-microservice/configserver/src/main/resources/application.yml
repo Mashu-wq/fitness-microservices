@@ -1,5 +1,5 @@
 server:
-    port: 9999
+  port: 9999
 
 spring:
   application:
@@ -11,3 +11,21 @@ spring:
       server:
         native:
           search-locations: classpath:/config
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://zipkin:9411/api/v2/spans
+  metrics:
+    tags:
+      application: ${spring.application.name}
